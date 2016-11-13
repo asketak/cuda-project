@@ -48,7 +48,7 @@ void compute2048(const int *results,  float *avg_stud,float *avg_que ){
 		for (int q = 0; q < 2048; q++) {
 			stud += results[x*2048 + q];
 		}
-		avg_stud[s] = (float)stud / (float)2048;
+		avg_stud[x] = (float)stud / (float)2048;
 	}else{
 		avg_que[x] = 0;
 		for (int q = 0; q < 2048; q++) {
