@@ -8,7 +8,7 @@
 
 #define STUDENTS  2048
 #define QUESTIONS 2048
-#define ITERS 1000
+#define ITERS 100
 
 void generateRandomResults(int *results, int students, int questions) {
     int seed = time(NULL);

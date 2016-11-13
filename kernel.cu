@@ -5,7 +5,8 @@
 #include <algorithm> 
 #include <string.h>
 #include <stdio.h>
-const int X = 256;
+const int X = 32;
+const int Y = 2;
 __global__
 void compute(const int *results, float *avg_que, const int students, const int questions){
 	int q = blockIdx.x*blockDim.x + threadIdx.x;
@@ -37,16 +38,26 @@ void compute2(const int *results, float *avg_stud,  const int students, const in
 }
 __global__
 void compute2048(const int *results,  float *avg_stud,float *avg_que ){
-	int s = blockIdx.x*blockDim.x + threadIdx.x;
-
+	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int stud = 0;
 	int que = 0;
-	for (int q = 0; q < 2048; q++) {
-		que += results[q*2048 + s];
-		stud += results[s*2048 + q];
+	
+	if (blockIdx.y % 2 == 0)
+	{
+		avg_stud[x] = 0;
+		for (int q = 0; q < 2048; q++) {
+			stud += results[x*2048 + q];
+		}
+		avg_stud[s] = (float)stud / (float)2048;
+	}else{
+		avg_que[x] = 0;
+		for (int q = 0; q < 2048; q++) {
+			que += results[q*2048 + x];
+		}
+		avg_que[x] = (float)que / (float)2048;
 	}
-	avg_que[s] = (float)que / (float)2048;
-	avg_stud[s] = (float)stud / (float)2048;
+	return;
+
 }
 
 __global__
@@ -76,13 +87,13 @@ void solveGPU(const int *results, float *avg_stud, float *avg_que, const int stu
 
 
 	dim3 threadsPerBlock(X,X);
-	int block=2048*2048/X/X;
+	dim3 block(32,2);
 	dim3 nlbl(64,2);
 	// if (students == 2048 && questions == 2048)
 	if (true)
 	{
 		nl<<<nlbl,2048/64>>>(avg_stud,avg_que);
-	//	compute2048<<<block,threadsPerBlock>>>(results,avg_stud, avg_que);
+		compute2048<<<block,2048/32>>>(results,avg_stud, avg_que);
 		// div<<<students/64,64>>>(avg_stud, avg_que,students,questions);
 	}else{
 		compute<<<questions/8+1, 8>>>(results,avg_que,students,questions);
@@ -93,6 +104,13 @@ void solveGPU(const int *results, float *avg_stud, float *avg_que, const int stu
 	// printf(" %d ", *h_data);
 	fflush(stdout); 
 	cudaDeviceSynchronize();
+	cudaError_t error = cudaGetLastError();
+	if(error != cudaSuccess)
+	{
+    // print the CUDA error message and exit
+		printf("CUDA error: %s\n", cudaGetErrorString(error));
+		exit(-1);
+	}
 	fflush(stdout); 
 	// cudaDeviceReset();
 }
