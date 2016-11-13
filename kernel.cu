@@ -3,9 +3,13 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <algorithm> 
+#include <string.h>
+#include <stdio.h>
+const int X = 256;
 __global__
 void compute(const int *results, float *avg_que, const int students, const int questions){
 	int q = blockIdx.x*blockDim.x + threadIdx.x;
+	int q2 = blockIdx.x*blockDim.x + threadIdx.y;
 	if (q >= questions)
 	{
 		return;
@@ -20,6 +24,7 @@ void compute(const int *results, float *avg_que, const int students, const int q
 __global__
 void compute2(const int *results, float *avg_stud,  const int students, const int questions){
 	int s = blockIdx.x*blockDim.x + threadIdx.x;
+	int s2 = blockIdx.x*blockDim.x + threadIdx.y;
 	if (s >= students)
 	{
 		return;
@@ -30,37 +35,65 @@ void compute2(const int *results, float *avg_stud,  const int students, const in
 	}
 	avg_stud[s] = (float)stud / (float)questions;
 }
-
 __global__
-void compute2048(const int *results, float *avg_que, const int students, const int questions){
-	int q = blockIdx.x*blockDim.x + threadIdx.x;
-	int que = 0;
-	for (int s = 0; s < students; s++) {
-		que += results[s*questions + q];
-	}
-	avg_que[q] = (float)que / (float)students;
-}
-
-__global__
-void compute20482(const int *results, float *avg_stud,  const int students, const int questions){
+void compute2048(const int *results,  float *avg_stud,float *avg_que ){
 	int s = blockIdx.x*blockDim.x + threadIdx.x;
+
 	int stud = 0;
-	for (int q = 0; q < questions; q++) {
-		stud += results[s*questions + q];
+	int que = 0;
+	for (int q = 0; q < 2048; q++) {
+		que += results[q*2048 + s];
+		stud += results[s*2048 + q];
 	}
-	avg_stud[s] = (float)stud / (float)questions;
+	avg_que[s] = (float)que / (float)2048;
+	avg_stud[s] = (float)stud / (float)2048;
 }
 
+__global__
+void div(float *avg_stud,float *avg_que,  const int students, const int questions){
+	for (int i = 0; i < questions; ++i)
+	{
+		avg_que[i] /= 2048.0;
+	}
+	for (int i = 0; i < students; ++i)
+	{
+		avg_stud[i] /= 2048.0;
+	}
+
+}
+__global__
+void nl(float *avg_stud, float * avg_que){
+	int s = blockIdx.x*blockDim.x + threadIdx.x;
+	if (blockIdx.y % 2 == 0)
+	{
+		avg_stud[s] = 0;
+	}else{
+		avg_que[s] = 0;
+	}
+
+}
 void solveGPU(const int *results, float *avg_stud, float *avg_que, const int students, const int questions){
 
 
-	if (students == 2048 && questions == 2048)
+	dim3 threadsPerBlock(X,X);
+	int block=2048*2048/X/X;
+	dim3 nlbl(64,2);
+	// if (students == 2048 && questions == 2048)
+	if (true)
 	{
-		compute2048<<<questions/32, 32>>>(results,avg_que,students,questions);
-		compute20482<<<students/32, 32>>>(results,avg_stud,students,questions);
+		nl<<<nlbl,2048/64>>>(avg_stud,avg_que);
+	//	compute2048<<<block,threadsPerBlock>>>(results,avg_stud, avg_que);
+		// div<<<students/64,64>>>(avg_stud, avg_que,students,questions);
 	}else{
-		compute<<<questions/1024, 1024>>>(results,avg_que,students,questions);
-		compute2<<<students/1024, 1024>>>(results,avg_stud,students,questions);
+		compute<<<questions/8+1, 8>>>(results,avg_que,students,questions);
+		compute2<<<students/8+1, 8>>>(results,avg_stud,students,questions);
 	}
-	}
+	// int *h_data = (int *)malloc(2048 * sizeof(int));
+	// cudaMemcpy(h_data, avg_stud, sizeof(int)*2048, cudaMemcpyDeviceToHost);
+	// printf(" %d ", *h_data);
+	fflush(stdout); 
+	cudaDeviceSynchronize();
+	fflush(stdout); 
+	// cudaDeviceReset();
+}
 

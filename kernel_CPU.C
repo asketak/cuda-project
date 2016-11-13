@@ -1,5 +1,10 @@
 // naive CPU implementation
 
+#ifndef KERNEL_CPU_C
+#define KERNEL_CPU_C
+
+
+
 void solveCPU(const int *results, float *avg_stud, float*avg_que, const int students, const int questions){
     for (int s = 0; s < students; s++) {
         int stud = 0;
@@ -17,3 +22,4 @@ void solveCPU(const int *results, float *avg_stud, float*avg_que, const int stud
     }
 }
 
+#endif // KERNEL_CPU_C
