@@ -8,7 +8,8 @@
 
 #define STUDENTS  2048
 #define QUESTIONS 2048
-#define ITERS 100
+#define ITERS 1 // poustis to v jedne iteraci kvuli mazani
+
 
 void generateRandomResults(int *results, int students, int questions) {
     int seed = time(NULL);
@@ -106,19 +107,19 @@ int main(int argc, char **argv){
     // check GPU results
     cudaMemcpy(gpu_avg_stud, d_avg_stud, STUDENTS*sizeof(d_avg_stud[0]), cudaMemcpyDeviceToHost);
     cudaMemcpy(gpu_avg_que, d_avg_que, QUESTIONS*sizeof(d_avg_que[0]), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < STUDENTS; i++) {
-        if (fabsf(gpu_avg_stud[i] - avg_stud[i]) > 0.000001f) {
-            printf("Error detected at index %i of avg_stud: %f should be %f.\n", i, gpu_avg_stud[i], avg_stud[i]);
-            goto cleanup; // exit after first error
-         }
-    }
+    
     for (int i = 0; i < QUESTIONS; i++) {
         if (fabsf(gpu_avg_que[i] - avg_que[i]) > 0.000001f) {
             printf("Error detected at index %i of avg_que: %f should be %f.\n", i, gpu_avg_que[i], avg_que[i]);
             goto cleanup; // exit after first error
          }
     }
-
+for (int i = 0; i < STUDENTS; i++) {
+        if (fabsf(gpu_avg_stud[i] - avg_stud[i]) > 0.000001f) {
+            printf("Error detected at index %i of avg_stud: %f should be %f.\n", i, gpu_avg_stud[i], avg_stud[i]);
+            goto cleanup; // exit after first error
+         }
+    }
     printf("Test OK.\n");
 
 cleanup:
