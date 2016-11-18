@@ -38,17 +38,37 @@ void compute1(const int *results, float *avg_que, const int students, const int 
 
 __global__
 void compute2(const int *results, float *avg_stud,  const int students, const int questions){
-	int s = blockIdx.x*blockDim.x + threadIdx.x;
-	int s2 = blockIdx.x*blockDim.x + threadIdx.y;
-	if (s >= students)
+	int bx = blockIdx.x;
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	// 64 * 16 threads for 16 values
+	// int tmp[16];
+	int tmp[16];
+	for (int i = 0; i < 16; ++i)
 	{
-		return;
+		tmp[i] = 0;
 	}
-	int stud = 0;
-	for (int q = 0; q < questions; q++) {
-		stud += results[s*questions + q];
+	int offset_y = bx * 16 ;
+	int offset_x = tx;
+
+	for (int offset_x = tx; offset_x < 2048; offset_x+=64)
+	{
+		for (int s = 0; s < 16; s+=1) {
+			tmp[s] += results[(offset_y+s)*questions + offset_x];
+		}
 	}
-	avg_stud[s] = (float)stud / (float)questions;
+
+	for (int i = 0; i < 16; ++i)
+	{
+		 float x = (float)tmp[i]/(float)2048;
+		 if (bx == 0 &&  i == 0)
+		 {
+		  atomicAdd(avg_stud + offset_y+i,x);
+		 }
+		 //atomicAdd(&tmp[i][tx],x);
+		 // atomicAdd(avg_stud + offset_y+i,x);
+	}
+
 }
 
 __global__
@@ -155,17 +175,19 @@ void nl(float *avg_stud, float * avg_que){
 
 }
 void solveGPU(const int *results, float *avg_stud, float *avg_que, const int students, const int questions){
+	cudaStream_t stream0;
+ cudaStreamCreate(&stream0);    // add this line
 
+ const int X = 16;
+ dim3 threadsPerBlock(X,X);
+ dim3 blck(32,32);
+ dim3 thrd(32);
 
-	const int X = 16;
-	dim3 threadsPerBlock(X,X);
-	dim3 blck(32,32);
-	dim3 thrd(32);
-
-	dim3 nlbl(64,2);
-	const int Y = 16;
+ dim3 nlbl(64,2);
+ const int Y = 16;
 	dim3 cmpblocks(2048/16); // 128 kernel
 	dim3 cmpthreads(16,64);
+	dim3 cmpthreads2(64,16);
 	// if (students == 2048 && questions == 2048)
 	if (false)
 	{
@@ -175,8 +197,8 @@ void solveGPU(const int *results, float *avg_stud, float *avg_que, const int stu
 	}else{
 		nl<<<nlbl,2048/64>>>(avg_stud,avg_que);
 		// compute1<<<questions/128+1, 128>>>(results,avg_que,students,questions);
-		compute<<<128, cmpthreads>>>(results,avg_que,students,questions);
-//		compute2<<<students/8+1, 8>>>(results,avg_stud,students,questions);
+		compute<<<128, cmpthreads,0>>>(results,avg_que,students,questions);
+		compute2<<<128, cmpthreads2,0,stream0>>>(results,avg_stud,students,questions);
 	}
 	// int *h_data = (int *)malloc(2048 * sizeof(int));
 	// cudaMemcpy(h_data, avg_stud, sizeof(int)*2048, cudaMemcpyDeviceToHost);
