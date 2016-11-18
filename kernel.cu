@@ -38,38 +38,25 @@ void compute1(const int *results, float *avg_que, const int students, const int 
 
 __global__
 void compute2(const int *results, float *avg_stud,  const int students, const int questions){
-	int bx = blockIdx.x;
+	int by = blockIdx.x;
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 	// 64 * 16 threads for 16 values
-	// int tmp[16];
-	int tmp[16];
-	for (int i = 0; i < 16; ++i)
-	{
-		tmp[i] = 0;
-	}
-	int offset_y = bx * 16 ;
+	int tmp  = 0;
+
+	int offset_y = by * 16 + ty;
 	int offset_x = tx;
 
 	for (int offset_x = tx; offset_x < 2048; offset_x+=64)
 	{
-		for (int s = 0; s < 16; s+=1) {
-			tmp[s] += results[(offset_y+s)*questions + offset_x];
-		}
+		tmp += results[(offset_y)*questions + offset_x];
 	}
-
-	for (int i = 0; i < 16; ++i)
-	{
-		 float x = (float)tmp[i]/(float)2048;
-		 if (bx == 0 &&  i == 0)
-		 {
-		  atomicAdd(avg_stud + offset_y+i,x);
-		 }
+	float x = (float)tmp/(float)2048;
+		 atomicAdd(avg_stud + offset_y,x);
 		 //atomicAdd(&tmp[i][tx],x);
 		 // atomicAdd(avg_stud + offset_y+i,x);
-	}
-
 }
+
 
 __global__
 void compute2048(const int *results,  float *avg_stud,float *avg_que ){
